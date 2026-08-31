@@ -4,7 +4,7 @@
     "@google/genai": "^2.16.0",
     "bcrypt": "^6.0.0",
     "cashfree-pg": "^6.0.5",
-    "cloudinary": "^2.10.0",
+    "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
