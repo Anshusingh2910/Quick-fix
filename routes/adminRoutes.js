@@ -1,7 +1,7 @@
 const express = require("express");
 const Validator = require("../middleware/validatorMiddleware");
 const { registerSchema, loginSchema, forgotPasswordSchema, verifyOTPSchema, resetPasswordSchema } = require("../validation/validationJoi");
-const { auth } = require("../middleware/authMiddleware");
+const {auth} =  require("../middleware/authmiddleware");
 const { loginLimiter, registerLimiter, forgotPasswordLimiter, resendOTPLimiter, verifyOTPLimiter, resetPasswordLimiter } = require("../middleware/Security")
 
 const app = express.Router();
