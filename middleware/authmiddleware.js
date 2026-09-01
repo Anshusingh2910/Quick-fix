@@ -6,7 +6,7 @@ const bcrypt = require("bcrypt")
 const ApiError = require("../utilities/ApiError");
 const multer = require("multer");
 const { cloudinary } = require("../config/cloudinary");
-const emailTemplate = require("../templates/Emailtemplates");
+const emailTemplate = require("../templates/emailtemplates");
 const { AccessToken, RefreshToken, verificationToken, } = require("../config/token");
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
