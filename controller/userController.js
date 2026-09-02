@@ -35,25 +35,30 @@ const register = async (req, res, next) => {
         });
 
         const verification = verificationToken(user, "verify-email");
-        try {
-            await sendEmail({
-                to: user.email,
-                subject: "New Login Alert - QuickFix",
-                html: emailTemplate({
-                    heading: `Hello ${user.name}`,
-                    message: `
-                We noticed a successful login to your <b>QuickFix 🚗🔧</b> account.
-                <br><br>
-                If this was you, no further action is required.
-            `,
-                }),
-            });
-        } catch (emailError) {
-            console.error(
-                "LOGIN EMAIL FAILED:",
-                emailError?.message || emailError
-            );
-        }
+
+        await sendEmail({
+            to: user.email,
+            subject: "Verify Your Email - QuickFix",
+            html: emailTemplate({
+                heading: `Hello ${user.name}`,
+                message: `
+      Welcome to <b>QuickFix 🚗🔧</b>.
+      <br><br>
+      Thank you for registering with QuickFix.
+      <br><br>
+      Your Email Verification OTP is:
+      <h2 style="letter-spacing:5px;">${otp}</h2>
+      This OTP is valid for <b>5 minutes</b>.
+      <br><br>
+      Please do not share this OTP with anyone.
+      <br><br>
+      If you did not create this account, you can safely ignore this email.
+      <br><br>
+      Regards,<br>
+      <b>QuickFix Team ❤️</b>
+    `,
+            }),
+        });
         res.status(201).json({
             status: true,
             message: "OTP sent successfully. Please verify your email.",
@@ -97,34 +102,25 @@ const login = async (req, res, next) => {
         user.refreshToken = refreshToken;
         await user.save();
 
-        await sendEmail({
-            to: user.email,
-            subject: "New Login Alert - QuickFix",
-            html: emailTemplate({
-                heading: `Hello ${user.name}`,
-                message: `
-      We noticed a successful login to your <b>QuickFix 🚗🔧</b> account.
-      <br><br>
-      If this was you, no further action is required.
-      <br><br>
-      <b>Account Details:</b>
-      <br>
-      📧 Email: ${user.email}
-      <br>
-      🕒 Login Time: ${new Date().toLocaleString("en-IN", {
-                    timeZone: "Asia/Kolkata",
-                })}
-      <br><br>
-      If you did <b>NOT</b> log in to your account, please reset your password immediately and contact the QuickFix Support Team.
-      <br><br>
-      Your account security is our top priority.
-      <br><br>
-      Regards,<br>
-      <b>QuickFix Team ❤️</b>
-    `,
-            }),
-        });
-
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: "New Login Alert - QuickFix",
+                html: emailTemplate({
+                    heading: `Hello ${user.name}`,
+                    message: `
+                We noticed a successful login to your <b>QuickFix 🚗🔧</b> account.
+                <br><br>
+                If this was you, no further action is required.
+            `,
+                }),
+            });
+        } catch (emailError) {
+            console.error(
+                "LOGIN EMAIL FAILED:",
+                emailError?.message || emailError
+            );
+        }
         res.status(200).json({
             status: true,
             message: "Login successful.",
