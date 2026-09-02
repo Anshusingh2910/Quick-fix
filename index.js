@@ -20,10 +20,7 @@ connectDB();
 
 const app = express();
 
-
-// ===============================
-// CORS
-// ===============================
+app.set("trust proxy", 1);
 
 app.use(
     cors({
