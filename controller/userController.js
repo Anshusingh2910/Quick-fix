@@ -11,121 +11,305 @@ const register = async (req, res, next) => {
     try {
         const { name, email, password, phone } = req.body;
 
+        const normalizedEmail = email.toLowerCase().trim();
+
+        // =========================================
+        // 1. Check existing user
+        // =========================================
+
         const existingUser = await User.findOne({
-            email: email.toLowerCase(),
-        })
+            email: normalizedEmail,
+        });
 
         if (existingUser) {
-            throw new ApiError(400, "Email already registered.");
+
+            // Already verified account
+            if (existingUser.isVerified) {
+                throw new ApiError(
+                    400,
+                    "Email already registered. Please login."
+                );
+            }
+
+            // =========================================
+            // Existing account is NOT verified
+            // Delete it so user can register again
+            // =========================================
+
+            await User.deleteOne({
+                _id: existingUser._id,
+            });
         }
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log('This is OTP', otp)
-        const hashedOTP = await bcrypt.hash(otp, 10);
+
+        // =========================================
+        // 2. Hash password
+        // =========================================
+
+        const hashedPassword = await bcrypt.hash(
+            password,
+            10
+        );
+
+        // =========================================
+        // 3. Generate OTP
+        // =========================================
+
+        const otp = generateOTP();
+
+        console.log("REGISTER OTP:", otp);
+
+        const hashedOTP = await bcrypt.hash(
+            otp,
+            10
+        );
+
+        // =========================================
+        // 4. Create user
+        // =========================================
 
         const user = await User.create({
-            name,
-            email: email.toLowerCase(),
+            name: name.trim(),
+            email: normalizedEmail,
             password: hashedPassword,
             phone,
             role: "user",
+
             otp: hashedOTP,
-            otpExpire: new Date(Date.now() + 5 * 60 * 1000),
+
+            otpExpire: new Date(
+                Date.now() + 5 * 60 * 1000
+            ),
+
             isVerified: false,
+            resetVerified: false,
         });
 
-        const verification = verificationToken(user, "verify-email");
+        // =========================================
+        // 5. Generate verification token
+        // =========================================
 
-        await sendEmail({
-            to: user.email,
-            subject: "Verify Your Email - QuickFix",
-            html: emailTemplate({
-                heading: `Hello ${user.name}`,
-                message: `
-      Welcome to <b>QuickFix 🚗🔧</b>.
-      <br><br>
-      Thank you for registering with QuickFix.
-      <br><br>
-      Your Email Verification OTP is:
-      <h2 style="letter-spacing:5px;">${otp}</h2>
-      This OTP is valid for <b>5 minutes</b>.
-      <br><br>
-      Please do not share this OTP with anyone.
-      <br><br>
-      If you did not create this account, you can safely ignore this email.
-      <br><br>
-      Regards,<br>
-      <b>QuickFix Team ❤️</b>
-    `,
-            }),
-        });
-        res.status(201).json({
+        const verification = verificationToken(
+            user,
+            "verify-email"
+        );
+
+        // =========================================
+        // 6. SEND OTP EMAIL
+        // =========================================
+
+        try {
+
+            await sendEmail({
+                to: user.email,
+
+                subject:
+                    "Verify Your Email - QuickFix",
+
+                html: emailTemplate({
+                    heading: `Hello ${user.name}`,
+
+                    message: `
+                        Welcome to <b>QuickFix 🚗🔧</b>.
+                        <br><br>
+
+                        Thank you for registering with QuickFix.
+                        <br><br>
+
+                        Your Email Verification OTP is:
+
+                        <h2
+                            style="
+                                letter-spacing:5px;
+                                color:#2563eb;
+                            "
+                        >
+                            ${otp}
+                        </h2>
+
+                        This OTP is valid for
+                        <b>5 minutes</b>.
+
+                        <br><br>
+
+                        Please do not share this OTP
+                        with anyone.
+
+                        <br><br>
+
+                        Regards,<br>
+                        <b>QuickFix Team ❤️</b>
+                    `,
+                }),
+            });
+
+        } catch (emailError) {
+
+            console.error(
+                "❌ REGISTER OTP EMAIL FAILED:",
+                emailError?.message || emailError
+            );
+
+            // =========================================
+            // IMPORTANT
+            // Email failed → DELETE CREATED USER
+            // =========================================
+
+            await User.deleteOne({
+                _id: user._id,
+            });
+
+            throw new ApiError(
+                503,
+                "Unable to send OTP. Please try again."
+            );
+        }
+
+        // =========================================
+        // 7. SUCCESS
+        // =========================================
+
+        return res.status(201).json({
             status: true,
-            message: "OTP sent successfully. Please verify your email.",
+
+            message:
+                "OTP sent successfully. Please verify your email.",
+
             verificationToken: verification,
         });
+
     } catch (err) {
         next(err);
     }
 };
+
 const login = async (req, res, next) => {
     try {
         const { email, password } = req.body;
 
+        const normalizedEmail = email
+            .toLowerCase()
+            .trim();
+
+        // =========================================
+        // Find user
+        // =========================================
+
         const user = await User.findOne({
-            email: email.toLowerCase(),
+            email: normalizedEmail,
         });
 
         if (!user) {
-            throw new ApiError(404, "User not found.");
-        }
-
-        if (user.role !== "user") {
-            throw new ApiError(403, "This account is not a user account.");
-        }
-
-        if (!user.isVerified) {
-            throw new ApiError(403, "Please verify your email before logging in.");
-        }
-
-        if (user.isBlocked) {
-            throw new ApiError(403, "Your account has been blocked. Please contact support.")
-        }
-
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            throw new ApiError(401, "Invalid email or password.");
-        }
-        const accessToken = AccessToken(user);
-        const refreshToken = RefreshToken(user);
-        user.refreshToken = refreshToken;
-        await user.save();
-
-        try {
-            await sendEmail({
-                to: user.email,
-                subject: "New Login Alert - QuickFix",
-                html: emailTemplate({
-                    heading: `Hello ${user.name}`,
-                    message: `
-                We noticed a successful login to your <b>QuickFix 🚗🔧</b> account.
-                <br><br>
-                If this was you, no further action is required.
-            `,
-                }),
-            });
-        } catch (emailError) {
-            console.error(
-                "LOGIN EMAIL FAILED:",
-                emailError?.message || emailError
+            throw new ApiError(
+                404,
+                "User not found."
             );
         }
-        res.status(200).json({
+
+        // =========================================
+        // Check role
+        // =========================================
+
+        if (user.role !== "user") {
+            throw new ApiError(
+                403,
+                "This account is not a user account."
+            );
+        }
+
+        // =========================================
+        // Email verification
+        // =========================================
+
+        if (!user.isVerified) {
+            throw new ApiError(
+                403,
+                "Please verify your email before logging in."
+            );
+        }
+
+        // =========================================
+        // Block check
+        // =========================================
+
+        if (user.isBlocked) {
+            throw new ApiError(
+                403,
+                "Your account has been blocked. Please contact support."
+            );
+        }
+
+        // =========================================
+        // Password
+        // =========================================
+
+        const isMatch = await bcrypt.compare(
+            password,
+            user.password
+        );
+
+        if (!isMatch) {
+            throw new ApiError(
+                401,
+                "Invalid email or password."
+            );
+        }
+
+        // =========================================
+        // Generate tokens
+        // =========================================
+
+        const accessToken = AccessToken(user);
+
+        const refreshToken = RefreshToken(user);
+
+        user.refreshToken = refreshToken;
+
+        await user.save();
+
+        // =========================================
+        // LOGIN EMAIL
+        // Don't block login if email fails
+        // =========================================
+
+        sendEmail({
+            to: user.email,
+
+            subject:
+                "New Login Alert - QuickFix",
+
+            html: emailTemplate({
+                heading: `Hello ${user.name}`,
+
+                message: `
+                    We noticed a successful login
+                    to your <b>QuickFix 🚗🔧</b> account.
+
+                    <br><br>
+
+                    If this was you,
+                    no further action is required.
+                `,
+            }),
+        }).catch((emailError) => {
+            console.error(
+                "⚠️ LOGIN ALERT EMAIL FAILED:",
+                emailError?.message || emailError
+            );
+        });
+
+        // =========================================
+        // RESPONSE
+        // =========================================
+
+        return res.status(200).json({
             status: true,
+
             message: "Login successful.",
+
             accessToken,
+
             refreshToken,
+
             data: {
                 id: user._id,
                 name: user.name,
@@ -133,6 +317,7 @@ const login = async (req, res, next) => {
                 role: user.role,
             },
         });
+
     } catch (err) {
         next(err);
     }

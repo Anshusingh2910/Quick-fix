@@ -93,6 +93,10 @@ const userSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        resetVerified: {
+            type: Boolean,
+            default: false,
+        },
 
         isBlocked: {
             type: Boolean,

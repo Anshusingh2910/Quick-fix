@@ -131,14 +131,24 @@ const sendEmail = async ({
     subject,
     html,
 }) => {
-    await transporter.sendMail({
-        from: `"Polenx" <${process.env.EMAIL_APP_USER}>`,
-        to,
-        subject,
-        html,
-    });
+    try {
+        const info = await transporter.sendMail({
+            from: `"QuickFix" <${process.env.EMAIL_APP_USER}>`,
+            to,
+            subject,
+            html,
+        });
 
+        console.log("✅ EMAIL SENT:", info.messageId);
+
+        return info;
+    } catch (error) {
+        console.error("❌ EMAIL SEND ERROR:", error);
+        throw error;
+    }
 };
+
+module.exports = sendEmail;
 
 const refreshTokenService = async (token, role) => {
     if (!token) {

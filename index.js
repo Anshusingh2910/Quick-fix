@@ -2,7 +2,7 @@ const express = require("express");
 const dns = require("dns");
 const cors = require("cors");
 require("dotenv").config();
-
+require("dns").setDefaultResultOrder("ipv4first");
 const connectDB = require("./config/db");
 
 const userRoutes = require("./routes/userRoutes");

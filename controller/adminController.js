@@ -206,11 +206,18 @@ const refreshAccessToken = async (req, res, next) => {
 };
 const forgotPassword = async (req, res, next) => {
     try {
+        const { email } = req.body;
+
+        if (!email) {
+            throw new ApiError(400, "Email is required.");
+        }
+
         const token = await forgotPasswordService(
-            req.body.email,
+            email,
             "user"
         );
-        res.status(200).json({
+
+        return res.status(200).json({
             status: true,
             message: "OTP sent successfully.",
             token,
@@ -431,7 +438,7 @@ const getMechanicById = async (req, res, next) => {
             );
 
         if (!mechanic) {
-            throw new ApiError(404,"Mechanic not found."
+            throw new ApiError(404, "Mechanic not found."
             );
         }
         return res.status(200).json({
