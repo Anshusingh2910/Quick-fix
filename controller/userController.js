@@ -11,149 +11,59 @@ const register = async (req, res, next) => {
     try {
         const { name, email, password, phone } = req.body;
 
-        const normalizedEmail = email.toLowerCase().trim();
-
-        // =========================================
-        // 1. Check existing user
-        // =========================================
-
         const existingUser = await User.findOne({
-            email: normalizedEmail,
-        });
+            email: email.toLowerCase(),
+        })
 
         if (existingUser) {
-            throw new ApiError(
-                400,
-                "Email already registered."
-            );
+            throw new ApiError(400, "Email already registered.");
         }
-
-        // =========================================
-        // 2. Hash password
-        // =========================================
-
-        const hashedPassword = await bcrypt.hash(
-            password,
-            10
-        );
-
-        // =========================================
-        // 3. Generate OTP
-        // =========================================
-
-        const otp = Math.floor(
-            100000 + Math.random() * 900000
-        ).toString();
-
-        console.log("This is OTP:", otp);
-
-        const hashedOTP = await bcrypt.hash(
-            otp,
-            10
-        );
-
-        // =========================================
-        // 4. Create user
-        // =========================================
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        console.log('This is OTP', otp)
+        const hashedOTP = await bcrypt.hash(otp, 10);
 
         const user = await User.create({
-            name: name.trim(),
-            email: normalizedEmail,
+            name,
+            email: email.toLowerCase(),
             password: hashedPassword,
             phone,
             role: "user",
-
             otp: hashedOTP,
-
-            otpExpire: new Date(
-                Date.now() + 5 * 60 * 1000
-            ),
-
+            otpExpire: new Date(Date.now() + 5 * 60 * 1000),
             isVerified: false,
-            resetVerified: false,
         });
 
-        // =========================================
-        // 5. Generate verification token
-        // =========================================
+        const verification = verificationToken(user, "verify-email");
 
-        const verification = verificationToken(
-            user,
-            "verify-email"
-        );
-
-        // =========================================
-        // 6. Send OTP Email
-        // =========================================
-
-        try {
-            await sendEmail({
-                to: user.email,
-
-                subject: "Verify Your Email - QuickFix",
-
-                html: emailTemplate({
-                    heading: `Hello ${user.name}`,
-
-                    message: `
-                        Welcome to <b>QuickFix 🚗🔧</b>.
-                        <br><br>
-
-                        Thank you for registering with QuickFix.
-                        <br><br>
-
-                        Your Email Verification OTP is:
-
-                        <h2 style="letter-spacing:5px;">
-                            ${otp}
-                        </h2>
-
-                        This OTP is valid for
-                        <b>5 minutes</b>.
-
-                        <br><br>
-
-                        Please do not share this OTP with anyone.
-
-                        <br><br>
-
-                        If you did not create this account,
-                        you can safely ignore this email.
-
-                        <br><br>
-
-                        Regards,<br>
-                        <b>QuickFix Team ❤️</b>
-                    `,
-                }),
-            });
-
-        } catch (emailError) {
-            console.error(
-                "❌ REGISTER EMAIL FAILED:",
-                emailError?.message || emailError
-            );
-
-            // Email nahi gayi → user delete
-            await User.findByIdAndDelete(user._id);
-
-            throw new ApiError(
-                503,
-                "Unable to send OTP. Please try again."
-            );
-        }
-
-        // =========================================
-        // 7. Success
-        // =========================================
-
-        return res.status(201).json({
+        await sendEmail({
+            to: user.email,
+            subject: "Verify Your Email - QuickFix",
+            html: emailTemplate({
+                heading: `Hello ${user.name}`,
+                message: `
+      Welcome to <b>QuickFix 🚗🔧</b>.
+      <br><br>
+      Thank you for registering with QuickFix.
+      <br><br>
+      Your Email Verification OTP is:
+      <h2 style="letter-spacing:5px;">${otp}</h2>
+      This OTP is valid for <b>5 minutes</b>.
+      <br><br>
+      Please do not share this OTP with anyone.
+      <br><br>
+      If you did not create this account, you can safely ignore this email.
+      <br><br>
+      Regards,<br>
+      <b>QuickFix Team ❤️</b>
+    `,
+            }),
+        });
+        res.status(201).json({
             status: true,
-            message:
-                "OTP sent successfully. Please verify your email.",
+            message: "OTP sent successfully. Please verify your email.",
             verificationToken: verification,
         });
-
     } catch (err) {
         next(err);
     }
