@@ -65,7 +65,7 @@ app.get("/", (req, res) => {
 
 app.get("/test-smtp", async (req, res) => {
     try {
-        const transporter = require("./config/transporter");
+        const transporter = require("./config/nodemailer");
 
         await transporter.verify();
 
