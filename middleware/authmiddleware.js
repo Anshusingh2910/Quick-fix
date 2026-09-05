@@ -131,7 +131,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const sendEmail = async ({ to, subject, html }) => {
     try {
         const { data, error } = await resend.emails.send({
-            from: "QuickFix <onboarding@resend.dev>",
+            from: "QuickFix <noreply@polenx.com>",
             to: [to],
             subject,
             html,
@@ -143,12 +143,6 @@ const sendEmail = async ({ to, subject, html }) => {
         }
 
         console.log("✅ EMAIL SENT:", data?.id);
-        console.log(
-            "RESEND KEY STATUS:",
-            process.env.RESEND_API_KEY
-                ? "AVAILABLE"
-                : "MISSING"
-        );
 
         return data;
 
@@ -157,6 +151,8 @@ const sendEmail = async ({ to, subject, html }) => {
         throw error;
     }
 };
+
+module.exports = sendEmail;
 
 
 const refreshTokenService = async (token, role) => {
