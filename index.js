@@ -63,6 +63,28 @@ app.get("/", (req, res) => {
     });
 });
 
+app.get("/test-smtp", async (req, res) => {
+    try {
+        const transporter = require("./config/transporter");
+
+        await transporter.verify();
+
+        res.status(200).json({
+            status: true,
+            message: "SMTP connection successful",
+        });
+
+    } catch (error) {
+        console.error("SMTP VERIFY ERROR:", error);
+
+        res.status(500).json({
+            status: false,
+            message: error.message,
+            code: error.code,
+            command: error.command,
+        });
+    }
+});
 
 // ===============================
 // API ROUTES

@@ -17,27 +17,5 @@ app.get("/profile", auth, profile)
 app.post("/resend-otp", resendOTPLimiter, resendOTP);
 app.post("/refresh-token", refreshAccessToken);
 app.post("/logout", auth, logout)
-app.get("/test-smtp", async (req, res) => {
-    try {
-        const transporter = require("./config/transporter");
-
-        await transporter.verify();
-
-        res.status(200).json({
-            status: true,
-            message: "SMTP connection successful",
-        });
-
-    } catch (error) {
-        console.error("SMTP VERIFY ERROR:", error);
-
-        res.status(500).json({
-            status: false,
-            message: error.message,
-            code: error.code,
-            command: error.command,
-        });
-    }
-});
 
 module.exports = app;
