@@ -11,7 +11,7 @@ const { AccessToken, RefreshToken, verificationToken, } = require("../config/tok
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
-const transporter = require("../config/nodemailer");
+const { Resend } = require("resend");
 const Notification = require("../model/notificationModel");
 
 const auth = async (req, res, next) => {
@@ -126,29 +126,38 @@ const adminTokenAuth = (req, res, next) => {
     }
 };
 
+const resend = new Resend(process.env.RESEND_API_KEY);
 const sendEmail = async ({
     to,
     subject,
     html,
 }) => {
     try {
-        const info = await transporter.sendMail({
-            from: `"QuickFix" <${process.env.EMAIL_APP_USER}>`,
+        const { data, error } = await resend.emails.send({
+            from: "QuickFix <onboarding@resend.dev>",
             to,
             subject,
             html,
         });
 
-        console.log("✅ EMAIL SENT:", info.messageId);
+        if (error) {
+            console.error("❌ EMAIL SEND ERROR:", error);
+            throw new Error(error.message);
+        }
 
-        return info;
+        console.log("✅ EMAIL SENT:", data?.id);
+
+        return data;
+
     } catch (error) {
-        console.error("❌ EMAIL SEND ERROR:", error);
+        console.error(
+            "❌ EMAIL SEND ERROR:",
+            error?.message || error
+        );
+
         throw error;
     }
 };
-
-module.exports = sendEmail;
 
 const refreshTokenService = async (token, role) => {
     if (!token) {
