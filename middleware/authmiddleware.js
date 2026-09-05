@@ -127,37 +127,37 @@ const adminTokenAuth = (req, res, next) => {
 };
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const sendEmail = async ({
-    to,
-    subject,
-    html,
-}) => {
+
+const sendEmail = async ({ to, subject, html }) => {
     try {
         const { data, error } = await resend.emails.send({
             from: "QuickFix <onboarding@resend.dev>",
-            to,
+            to: [to],
             subject,
             html,
         });
 
         if (error) {
-            console.error("❌ EMAIL SEND ERROR:", error);
+            console.error("❌ RESEND ERROR:", error);
             throw new Error(error.message);
         }
 
         console.log("✅ EMAIL SENT:", data?.id);
+        console.log(
+            "RESEND KEY STATUS:",
+            process.env.RESEND_API_KEY
+                ? "AVAILABLE"
+                : "MISSING"
+        );
 
         return data;
 
     } catch (error) {
-        console.error(
-            "❌ EMAIL SEND ERROR:",
-            error?.message || error
-        );
-
+        console.error("❌ EMAIL SEND ERROR:", error.message);
         throw error;
     }
 };
+
 
 const refreshTokenService = async (token, role) => {
     if (!token) {
